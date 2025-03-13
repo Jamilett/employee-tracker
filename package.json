@@ -1,0 +1,26 @@
+{
+  "name": "employee-manager",
+  "version": "1.0.0",
+  "description": "CLI app to manage employee database using Node.js, Inquirer, and PostgreSQL",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js", 
+    "db:init": "node connection.js", 
+    "dev": "nodemon server.js", 
+    "start:dev": "npm run db:init && npm run dev",
+    "lint": "eslint .", 
+    "lint:fix": "eslint . --fix", 
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "inquirer": "^9.0.2",
+    "pg": "^8.10.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.35.0",
+    "nodemon": "^3.0.1",
+    "prettier": "^3.1.0"
+  }
+}
