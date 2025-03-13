@@ -1,94 +1,62 @@
 import { config } from 'dotenv';
-import { Pool } from 'pg';
+import pkg from 'pg';
+const { Pool } = pkg;
 
-config();
+config();  // Cargar variables de entorno
 
 const pool = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
     password: process.env.DB_PASSWORD,
     port: process.env.DB_PORT,
-    database: process.env.DB_NAME,
 });
 
-const dbName = 'employee_db';
-
-const createDatabase = async () => {
-    try {
-        const checkDb = await pool.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
-
-        if (checkDb.rowCount === 0) {
-            await pool.query(`CREATE DATABASE ${dbName}`);
-            console.log(`✔ Database "${dbName}" created successfully.`);
-        } else {
-            console.log(`✔ Database "${dbName}" already exists.`);
-        }
-
-        // Cerrar conexión inicial
-        await pool.end();
-
-        // Conectarse a la nueva base de datos para crear tablas
-        const newPool = new Pool({
-            user: process.env.DB_USER,
-            host: process.env.DB_HOST,
-            database: dbName,
-            password: process.env.DB_PASSWORD,
-            port: process.env.DB_PORT,
-        });
-
-        // Crear tablas
-        await newPool.query(`
-            CREATE TABLE IF NOT EXISTS department (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(30) UNIQUE NOT NULL
-            );
-
-            CREATE TABLE IF NOT EXISTS role (
-                id SERIAL PRIMARY KEY,
-                title VARCHAR(30) UNIQUE NOT NULL,
-                salary DECIMAL NOT NULL,
-                department_id INTEGER NOT NULL,
-                CONSTRAINT fk_department FOREIGN KEY (department_id) REFERENCES department(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS employee (
-                id SERIAL PRIMARY KEY,
-                first_name VARCHAR(30) NOT NULL,
-                last_name VARCHAR(30) NOT NULL,
-                role_id INTEGER NOT NULL,
-                manager_id INTEGER,
-                CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES role(id) ON DELETE CASCADE,
-                CONSTRAINT fk_manager FOREIGN KEY (manager_id) REFERENCES employee(id) ON DELETE SET NULL
-            );
-        `);
-
-        console.log('✔ Tables created successfully.');
-
-        // Poblar la base de datos con datos iniciales
-        await newPool.query(`
-            INSERT INTO department (name) VALUES ('Engineering'), ('Sales'), ('HR')
-            ON CONFLICT (name) DO NOTHING;
-
-            INSERT INTO role (title, salary, department_id) VALUES
-            ('Software Engineer', 80000, 1),
-            ('Sales Representative', 50000, 2),
-            ('HR Manager', 60000, 3)
-            ON CONFLICT (title) DO NOTHING;
-
-            INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES
-            ('Alice', 'Smith', 1, NULL),
-            ('Bob', 'Johnson', 2, NULL),
-            ('Charlie', 'Brown', 3, NULL)
-            ON CONFLICT DO NOTHING;
-        `);
-
-        console.log('✔ Initial data inserted successfully.');
-
-        await newPool.end();
-    } catch (error) {
-        console.error('❌ Error creating database:', error);
-    }
+// Función para ver todos los departamentos
+export const getDepartments = async () => {
+    const result = await pool.query('SELECT * FROM department');
+    return result.rows;
 };
 
-// Ejecutar la función para crear la base de datos y las tablas
-createDatabase();
+// Función para ver todos los roles
+export const getRoles = async () => {
+    const result = await pool.query(`
+        SELECT role.id, role.title, department.name AS department, role.salary
+        FROM role
+        JOIN department ON role.department_id = department.id
+    `);
+    return result.rows;
+};
+
+// Función para ver todos los empleados
+export const getEmployees = async () => {
+    const result = await pool.query(`
+        SELECT e.id, e.first_name, e.last_name, role.title, department.name AS department, role.salary, 
+               COALESCE(m.first_name || ' ' || m.last_name, 'None') AS manager
+        FROM employee e
+        JOIN role ON e.role_id = role.id
+        JOIN department ON role.department_id = department.id
+        LEFT JOIN employee m ON e.manager_id = m.id
+    `);
+    return result.rows;
+};
+
+// Función para agregar un departamento
+export const addDepartment = async (name) => {
+    await pool.query('INSERT INTO department (name) VALUES ($1)', [name]);
+};
+
+// Función para agregar un rol
+export const addRole = async (title, salary, department_id) => {
+    await pool.query('INSERT INTO role (title, salary, department_id) VALUES ($1, $2, $3)', [title, salary, department_id]);
+};
+
+// Función para agregar un empleado
+export const addEmployee = async (first_name, last_name, role_id, manager_id) => {
+    await pool.query('INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ($1, $2, $3, $4)', [first_name, last_name, role_id, manager_id]);
+};
+
+// Función para actualizar el rol de un empleado
+export const updateEmployeeRole = async (employee_id, role_id) => {
+    await pool.query('UPDATE employee SET role_id = $1 WHERE id = $2', [role_id, employee_id]);
+};

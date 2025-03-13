@@ -55,6 +55,7 @@ npm run start:prod
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 #### Video Walkthrough
+https://youtu.be/FhPh8dTQEWY
 
 #### Contact
 For any questions or feedback, please contact me at https://github.com/Jamilett.
